@@ -1,0 +1,126 @@
+import ConfigParser
+import datetime
+import os
+import re
+import user
+
+import bugzilla
+import click
+from pylarion.exceptions import PylarionLibException
+from pylarion.hyperlink import Hyperlink
+from pylarion.plan import Plan
+from pylarion.text import Text
+from pylarion.user import User
+from pylarion.work_item import Requirement
+
+BUGZILLA_SERVER = "https://bugzilla.redhat.com/xmlrpc.cgi"
+
+
+class ConfigFileMissingException(Exception):
+    pass
+
+
+def parse_config():
+    conf_file = os.path.join(user.home, ".pylarion")
+    if not os.path.isfile(conf_file):
+        raise ConfigFileMissingException
+
+    config = ConfigParser.RawConfigParser()
+    config.read(conf_file)
+    params_dict = {}
+    for params in config.items("webservice"):
+        params_dict[params[0]] = params[1]
+
+    return params_dict
+
+
+def get_user_from_email(email):
+    lst_user = email.split("@")
+    user = None
+    if lst_user[1].lower() == "redhat.com":
+        try:
+            user = User(lst_user[0])
+        except PylarionLibException:
+            # if the user isn"t in the system then ignore
+            # in the next section it will create an unlinked reference
+            user = User(User.logged_in_user_id)
+    return user
+
+
+def get_bugs_from_saves_query(query):
+    user_params = parse_config()
+    username = user_params.get("user")
+    password = user_params.get("password")
+    bz_connection = bugzilla.Bugzilla(url=BUGZILLA_SERVER)
+  
+    query = bz_connection.build_query(
+        savedsearch=query
+    )
+
+    saved_search_query = bz_connection.build_query(query)
+    return bz_connection.query(saved_search_query)
+
+
+def get_bug_params(bug):
+    named_parms = dict()
+    bug_summary = re.sub(r"[^\x00-\x7F]+", " ", bug.summary)
+    target_milestone = bug.target_milestone
+    bug_id = bug.id
+    title = "[%s][%s]%s" % (target_milestone, bug_id, bug_summary)
+    description = ""
+    if bug.comments:
+        comment = bug.comments[0]
+        # the description is always the first comment.
+        description = comment["text"]
+        named_parms["author"] = get_user_from_email(comment["author"])
+
+    return title, named_parms, description, bug.weburl, bug_id
+
+
+def create_requirement(saved_search, project, planned_in):
+    idx = 0
+    try:
+        User.session.tx_begin()
+        lst_bugs = get_bugs_from_saves_query(saved_search)
+        plan = Plan(project_id=project, plan_id=planned_in)
+        req_ids = list()
+        for bug in lst_bugs:
+            print "%s - start bug %s" % (datetime.datetime.now(), idx+1)
+            title, named_parms, description, bug_link, bug_id = get_bug_params(
+                bug
+            )
+            #  Check if we already have requirement for current FRE
+            if Requirement.query(str(bug_id)):
+                continue
+
+            named_parms["severity"] = "should_have"
+            named_parms["reqtype"] = "functional"
+            desc = ""
+            if description:
+                desc = Text(description.decode("utf-8"))
+                desc.content_type = "text/plain"
+
+            link = Hyperlink()
+            link.role = "ref_ext"
+            link.uri = bug_link
+            req = Requirement.create(
+                project_id=project, title=title, desc=desc, **named_parms
+            )
+            req.add_hyperlink(link.uri, link.role)
+            req.status = "approved"
+            req.update()
+            idx += 1
+            print "%s - end bug: %s - %s" % (
+                datetime.datetime.now(), req.work_item_id, link.uri
+            )
+            req_ids.append(req.work_item_id)
+        plan.add_plan_items(req_ids)
+        User.session.tx_commit()
+    except Exception, e:
+        User.session.tx_rollback()
+        print e.message
+        print "rolled back"
+
+
+if __name__ == "__main__":
+    create_requirement("RHOS 12 RFEs",'RHELOpenStackPlatform','RHOS12')
