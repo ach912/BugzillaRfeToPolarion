@@ -12,6 +12,7 @@ from pylarion.plan import Plan
 from pylarion.text import Text
 from pylarion.user import User
 from pylarion.work_item import Requirement
+import time
 
 BUGZILLA_SERVER = "https://bugzilla.redhat.com/xmlrpc.cgi"
 BUGZILLA_PRODUCT= "Red Hat OpenStack"
@@ -155,7 +156,7 @@ def get_rfes_from_bugzilla():
 
     query = bz_connection.build_query(
         product = BUGZILLA_PRODUCT,
-        #version = BUGZILLA_VERSION,
+        #version = BUGZILLA_VERSION,.
         keywords = "FutureFeature",
         status = "NEW, ASSIGNED, POST, MODIFIED, ON_DEV, ON_QA, VERIFIED"
     )
@@ -179,22 +180,31 @@ def get_rfes_from_bugzilla():
 def create_requirements(bz_rfes, bz_connection):
     idx = 0
 
-    #bz_rfe = bz_rfes[0]
 
+    plan = Plan(project_id=POLARION_PRODUCT, plan_id=POLARION_VERSION)
+    req_ids = list()
+
+    # bz_rfe = bz_rfes[0]
     for bz_rfe in bz_rfes:
 
         bug_title, named_parms, bug_description, bug_link, bug_id, bug_priority,bug_severity, bug_dfg = get_bug_params(bz_rfe)
-        print "%s - start bug %s" % (datetime.datetime.now(), idx + 1),
+        print "\n%s - start bug %s" % (datetime.datetime.now(), idx + 1),
+        idx +=1
+        print '"{}"'.format(bug_link)
 
-        plan = Plan(project_id=POLARION_PRODUCT, plan_id=POLARION_VERSION)
-        req_ids = list()
+        for i in range(0,10):
+            try:
+                if Requirement.query('"{}"'.format(bug_link)):
+                    print "\nThis RFE already exist in Polarion: " + str(bug_id)
+                break
+            except Exception as inst:
+                print inst
+                i+=1
+                time.sleep(10)
 
-        if Requirement.query("https://bugzilla.redhat.com/show_bug.cgi?id=" + str(bug_id)):
-            print "This RFE already exist in Polarion: " + str(bug_id)
-            continue
 
         #TODO Convert bugzilla to Polarion priority and set
-        #named_parms["priority"] = convert_polarion_priority(bug_priority)
+        named_parms["priority"] = convert_polarion_priority(bug_priority)
 
         # Convert bugzilla to Polarion severity and set
         named_parms["severity"] = convert_polarion_severity(bug_severity)
@@ -222,12 +232,8 @@ def create_requirements(bz_rfes, bz_connection):
         req.status = "approved"
         req.update()
 
-
         #Get requirement ID and update bugzilla extrenal link tracker
-    #
         bz_connection.add_external_tracker(str(bz_rfe.id), str(req.work_item_id), ext_type_description="Polarion Requirement")
-
-        idx += 1
         print "%s - end bug: %s - %s" % (datetime.datetime.now(), req.work_item_id, link.uri)
         req_ids.append(req.work_item_id)
 
