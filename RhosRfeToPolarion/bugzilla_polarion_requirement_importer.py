@@ -69,7 +69,7 @@ def convert_polarion_dfg(bug_dfg):
     elif bug_dfg.startswith("DFG:OpsTools"):
         dfg_id = "4"
     elif bug_dfg.startswith("DFG:PIDONE"):
-        dfg_id = "19    "
+        dfg_id = "19"
     elif bug_dfg.startswith("DFG:ReleaseDelivery"):
         dfg_id = "13"
     elif bug_dfg.startswith("DFG:Security"):
@@ -84,6 +84,8 @@ def convert_polarion_dfg(bug_dfg):
         dfg_id = "22"
     elif bug_dfg.startswith("DFG:Workflows"):
         dfg_id = "28"
+    elif bug_dfg.startswith("DFG:OpenShiftonOpenStack"):
+        dfg_id = "26"
     else:
         dfg_id = ""
 
@@ -136,6 +138,20 @@ def get_bug_params(bug):
 
     return bug_summary, named_parms, description, bug.weburl, bug_id, priority,severity, dfg
 
+def isRequirementInPolarion(bug_link):
+    for i in range(0, 10):  # WA for Polarion disconnection from time to time
+        try:
+            if Requirement.query('"{}"'.format(bug_link)):
+                print "\nRequirement already in Polarion: " + str(bug_link)
+                return True
+            break
+        except Exception as inst:
+            print inst
+            i += 1
+            time.sleep(10)
+
+    return False
+
 def get_rfes_from_bugzilla():
     # Open connection into bugzilla
     user_params = parse_config()
@@ -178,64 +194,70 @@ def get_rfes_from_bugzilla():
     return bz_rfes, bz_connection
 
 def create_requirements(bz_rfes, bz_connection):
-    idx = 0
+    idx = 103
 
 
     plan = Plan(project_id=POLARION_PRODUCT, plan_id=POLARION_VERSION)
     req_ids = list()
 
     # bz_rfe = bz_rfes[0]
+    #for x in range(103,127):
     for bz_rfe in bz_rfes:
+        #bz_rfe = bz_rfes[x]
 
         bug_title, named_parms, bug_description, bug_link, bug_id, bug_priority,bug_severity, bug_dfg = get_bug_params(bz_rfe)
-        print "\n%s - start bug %s" % (datetime.datetime.now(), idx + 1),
+        print "\n%s - start bug %s" % (datetime.datetime.now(), idx),
         idx +=1
         print '"{}"'.format(bug_link)
 
-        for i in range(0,10):
-            try:
-                if Requirement.query('"{}"'.format(bug_link)):
-                    print "\nThis RFE already exist in Polarion: " + str(bug_id)
-                break
-            except Exception as inst:
-                print inst
-                i+=1
-                time.sleep(10)
+
+        if isRequirementInPolarion(bug_link) == False:
+
+            #TODO Convert bugzilla to Polarion priority and set
+            #named_parms["priority"] = convert_polarion_priority(bug_priority)
+
+            # Convert bugzilla to Polarion severity and set
+            named_parms["severity"] = convert_polarion_severity(bug_severity)
+
+            # Set Polarion requirement type
+            named_parms["reqtype"] = "functional"
+
+            #Cenvert DFG name from bugzilla to dfg_id in Polarion
+            named_parms["d_f_g"] = convert_polarion_dfg(bug_dfg)
+
+            #Get bug description from first comment and add to Polarion requirement
+            desc = ""
+            if bug_description:
+                desc = Text(bug_description.encode('ascii', 'ignore').decode('ascii'))
+                # decode("utf-8"))
+                desc.content_type = "text/plain"
+
+            # Add hyperlink to bugzilla
+            link = Hyperlink()
+            link.role = "ref_ext"
+            link.uri = bug_link
+
+            for i in range(0,10): #WA for Polarion disconnection from time to time
+                try:
+                    req = Requirement.create(project_id=POLARION_PRODUCT, title=bug_title, desc=desc, **named_parms)
+                    break
+                except Exception as inst:
+                    print inst
+                    i+=1
+                    time.sleep(10)
 
 
-        #TODO Convert bugzilla to Polarion priority and set
-        named_parms["priority"] = convert_polarion_priority(bug_priority)
 
-        # Convert bugzilla to Polarion severity and set
-        named_parms["severity"] = convert_polarion_severity(bug_severity)
+            req.add_hyperlink(link.uri, link.role)
+            req.status = "approved"
+            req.update()
 
-        # Set Polarion requirement type
-        named_parms["reqtype"] = "functional"
+            #Get requirement ID and update bugzilla extrenal link tracker
+            bz_connection.add_external_tracker(str(bz_rfe.id), str(req.work_item_id), ext_type_description="Polarion Requirement")
+            req_ids.append(req.work_item_id)
 
-        #Cenvert DFG name from bugzilla to dfg_id in Polarion
-        named_parms["d_f_g"] = convert_polarion_dfg(bug_dfg)
-
-        #Get bug description from first comment and add to Polarion requirement
-        desc = ""
-        if bug_description:
-            desc = Text(bug_description.decode("utf-8"))
-            desc.content_type = "text/plain"
-
-        # Add hyperlink to bugzilla
-        link = Hyperlink()
-        link.role = "ref_ext"
-        link.uri = bug_link
-        req = Requirement.create(
-            project_id=POLARION_PRODUCT , title=bug_title, desc=desc, **named_parms
-        )
-        req.add_hyperlink(link.uri, link.role)
-        req.status = "approved"
-        req.update()
-
-        #Get requirement ID and update bugzilla extrenal link tracker
-        bz_connection.add_external_tracker(str(bz_rfe.id), str(req.work_item_id), ext_type_description="Polarion Requirement")
         print "%s - end bug: %s - %s" % (datetime.datetime.now(), req.work_item_id, link.uri)
-        req_ids.append(req.work_item_id)
+
 
     plan.add_plan_items(req_ids)
 

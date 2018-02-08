@@ -6,6 +6,9 @@ from pylarion.work_item import TestCase
 import httplib2
 import os
 import time
+import ssl
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 from apiclient import discovery
 from oauth2client import client
@@ -70,8 +73,8 @@ def main():
     # plannedin.KEY:RHOS12
 
 
-    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS12 AND TestRunType.KEY:(regression featureverification)')
-    #    test_runs_uris = TestRun.search('20171016-1350')
+    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS13 AND TestRunType.KEY:(regression featureverification)')
+    #test_runs_uris = TestRun.search('20180129-1038')
     print ("Number of items %s" % len(test_runs_uris))
     loop_counter = 1;
     missing_test_run_in_excel = ''
@@ -84,7 +87,7 @@ def main():
 #    for i in range(104,135):
  #       test_run_uri = test_runs_uris[i]
         #get excel values
-        rangeName = 'RHOS 12!A2:V'
+        rangeName = 'RHOS 13!A2:X'
         result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
         values = result.get('values', [])
         value_input_option = 'RAW'
@@ -156,36 +159,37 @@ def main():
         print ('Automation percentage:', automation_percentage)
         print ('Total number of test cases:', total_counter)
 
-
+        #TODO - update planned number with real number
         row_counter = 1  # offset due to headers
-        title_column_number = 1
-        total_column_number = 7
-        pass_column_number = 8
-        fail_column_number = 9
-        blocked_column_number = 10
-        test_run_id_column_number = 17
-        automation_percentage_column_number = 15
-        critical_test_number = 19
+        title_column_number = 2
+        total_column_number = 8
+        pass_column_number = 9
+        fail_column_number = 10
+        blocked_column_number = 11
+        test_run_id_column_number = 20
+        automation_percentage_column_number = 18
+        critical_test_number = 22
         is_test_run_exist_in_excel = None
 
         if not values:
             print('No data found.')
         else:
             for row in values:
-                is_test_run_exist_in_excel = True
+                is_test_run_exist_in_excel = False
                 row_counter +=1
                 # Check that row contains test run id in cell R AND check that test_run_id is match
-                if row.__len__() >= 18 and row[test_run_id_column_number] == test_run_id:
+                if row.__len__() >= 20 and row[test_run_id_column_number] == test_run_id:
                     print('Row number is: ' + str(row_counter))
-  #                  print('%s, %s, %s, %s, %s, %s, %s :' % (row[title_column_number], row[total_column_number], row[pass_column_number], row[fail_column_number], row[blocked_column_number],row[automation_percentage_column_number], row[critical_test_number]))
+                    is_test_run_exist_in_excel = True
+                    #  print('%s, %s, %s, %s, %s, %s, %s :' % (row[title_column_number], row[total_column_number], row[pass_column_number], row[fail_column_number], row[blocked_column_number],row[automation_percentage_column_number], row[critical_test_number]))
                     values = [
-                        [total_counter,pass_counter,fail_counter,blocked_counter]
+                        [total_counter,total_counter,pass_counter,fail_counter,blocked_counter]
                     ]
                     body = {
                         'values': values
                     }
 
-                    rangeName =  'RHOS 12!H' + str(row_counter) + ':K' + str(row_counter)
+                    rangeName =  'RHOS 13!H' + str(row_counter) + ':L' + str(row_counter)
                     result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName,valueInputOption=value_input_option, body=body).execute()
 
                     # update automation percentage field
@@ -195,7 +199,7 @@ def main():
                     body = {
                         'values': values
                     }
-                    rangeName = 'RHOS 12!P' + str(row_counter)
+                    rangeName = 'RHOS 13!S' + str(row_counter)
                     result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption=value_input_option,body=body).execute()
 
 
@@ -206,7 +210,7 @@ def main():
                     body = {
                         'values': values
                     }
-                    rangeName = 'RHOS 12!S' + str(row_counter) + ':U' + str(row_counter)
+                    rangeName = 'RHOS 13!V' + str(row_counter) + ':X' + str(row_counter)
                     result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption=value_input_option,body=body).execute()
 
                     # done with update, move to next test run

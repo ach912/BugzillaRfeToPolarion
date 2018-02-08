@@ -9,7 +9,7 @@ from pylarion.document import Document
 
 #items = TestCase.query('project.id:RHELOpenStackPlatform')
 
-items = TestCase.query('casecomponent.KEY:Ceilometer AND author.id:yprokule')
+items = TestCase.query('casecomponent.KEY:Heat AND author.id:(augol rrasouli tshefi)')
 
 
 print "Number of items %s" % len(items)
