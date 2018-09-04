@@ -15,10 +15,10 @@ from pylarion.work_item import Requirement
 import time
 
 BUGZILLA_SERVER = "https://bugzilla.redhat.com/xmlrpc.cgi"
-BUGZILLA_PRODUCT= "Red Hat OpenStack"
-BUGZILLA_VERSION = "13.0 (Queens)"
+BUGZILLA_PRODUCT= "OpenShift Container Platform"
+BUGZILLA_VERSION = "14.0 (Queens)"
 POLARION_PRODUCT = "RHELOpenStackPlatform"
-POLARION_VERSION = "RHOS13"
+POLARION_VERSION = "RHOS14"
 
 
 
@@ -43,49 +43,51 @@ def parse_config():
 def convert_polarion_dfg(bug_dfg):
     dfg_id = ""
     if bug_dfg.startswith("DFG:Ceph"):
-        dfg_id = "24"
+        dfg_id = "Ceph"
     elif bug_dfg.startswith("DFG:Compute"):
-        dfg_id = "6"
+        dfg_id = "Compute"
     elif bug_dfg.startswith("DFG:CloudApp"):
-        dfg_id = "23"
+        dfg_id = "CloudApps"
     elif bug_dfg.startswith("DFG:Containers"):
-        dfg_id = "25"
+        dfg_id = "Containers"
     elif bug_dfg.startswith("DFG:DF"):
-        dfg_id = "7"
+        dfg_id = "Deployment"
     elif bug_dfg.startswith("DFG:HardProv"):
-        dfg_id = "9"
+        dfg_id = "HardProv"
     elif bug_dfg.startswith("DFG:Infra"):
-        dfg_id = "5"
+        dfg_id = "CI_Infra"
     elif bug_dfg.startswith("DFG:MetMon"):
-        dfg_id = "27"
+        dfg_id = "MetMon"
     elif bug_dfg.startswith("DFG:NFV"):
-        dfg_id = "11"
+        dfg_id = "NFV"
     elif bug_dfg.startswith("DFG:Networking"):
-        dfg_id = "10"
+        dfg_id = "Network"
     elif bug_dfg.startswith("DFG:ODL"):
-        dfg_id = "3"
+        dfg_id = "ODL"
     elif bug_dfg.startswith("DFG:OVN"):
-        dfg_id = "17"
+        dfg_id = "OVN"
     elif bug_dfg.startswith("DFG:OpsTools"):
-        dfg_id = "4"
+        dfg_id = "OpsTools"
     elif bug_dfg.startswith("DFG:PIDONE"):
-        dfg_id = "19"
+        dfg_id = "PIDONE"
     elif bug_dfg.startswith("DFG:ReleaseDelivery"):
-        dfg_id = "13"
+        dfg_id = "ReleaseDelivery"
     elif bug_dfg.startswith("DFG:Security"):
-        dfg_id = "14"
+        dfg_id = "Security"
     elif bug_dfg.startswith("DFG:Storage"):
-        dfg_id = "15"
+        dfg_id = "Storage"
     elif bug_dfg.startswith("DFG:Telemetry"):
-        dfg_id = "16"
+        dfg_id = "Telemetry"
     elif bug_dfg.startswith("DFG:UI"):
-        dfg_id = "8"
+        dfg_id = "OSPD_UI"
     elif bug_dfg.startswith("DFG:Upgrades"):
-        dfg_id = "22"
+        dfg_id = "Upgrade"
     elif bug_dfg.startswith("DFG:Workflows"):
-        dfg_id = "28"
+        dfg_id = "Workflows"
     elif bug_dfg.startswith("DFG:OpenShiftonOpenStack"):
-        dfg_id = "26"
+        dfg_id = "OpenShiftOnOpenstack"
+    elif bug_dfg.startswith("DFG:PortfolioIntegration"):
+        dfg_id = "PortfolioIntegration"
     else:
         dfg_id = ""
 
@@ -168,33 +170,28 @@ def get_rfes_from_bugzilla():
     #C % 20 & keywords_type = allwords & list_id = 8251986 & o1 = notsubstring & o2 = substring & o3 = notsubstring & product = Red % 20
     #Hat % 20 OpenStack & v1 = doc & v2 = osp13add & v3 = osp13rem
 
+    # https: // bugzilla.redhat.com / buglist.cgi?action = wrap & bug_status = POST & bug_status = MODIFIED & bug_status = ON_QA & bug_status = VERIFIED & classification = Red % 20 Hat &
+    # f2 = flagtypes.name &
+    # f3 = target_milestone &
+    # keywords = FutureFeature % 2C % 20 Triaged % 2C % 20 &
+    # keywords_type = allwords &
+    # list_id = 9078558 &
+    # o2 = regexp &
+    # o3 = notequals &
+    # product = Red % 20Hat % 20 OpenStack &
+    # v2 = rhos. % 2A - 14.0 % 5C % 2B &
+    # v3 = ---
+
     print "Bugzilla connection: " + str(bz_connection.logged_in)
 
-    query = bz_connection.build_query(
-        product = BUGZILLA_PRODUCT,
-        #version = BUGZILLA_VERSION,.
-        keywords = "FutureFeature",
-        status = "NEW, ASSIGNED, POST, MODIFIED, ON_DEV, ON_QA, VERIFIED"
-    )
-
-    query["query_format"] = "advanced"
-    query["classification"] = "Red Hat"
-    query["f1"] = "component"
-    query["o1"] = "notsubstring"
-    query["v1"] = "doc"
-    query["f2"] = "cf_devel_whiteboard"
-    query["o2"] = "substring"
-    query["v2"] = "osp13add"
-    query["f3"] = "cf_devel_whiteboard"
-    query["o3"] = "notsubstring"
-    query["v3"] = "osp13rem"
+    query = bz_connection.build_query(quicksearch = "1391364,1430485,1446522,1462048,1465036,1495692,1548059,1552268,1554786,1554790,1565622,1565999,1581470,1593858,1595330")
 
     bz_rfes = bz_connection.query(query)
 
     return bz_rfes, bz_connection
 
 def create_requirements(bz_rfes, bz_connection):
-    idx = 103
+    idx = 0
 
 
     plan = Plan(project_id=POLARION_PRODUCT, plan_id=POLARION_VERSION)
@@ -237,16 +234,7 @@ def create_requirements(bz_rfes, bz_connection):
             link.role = "ref_ext"
             link.uri = bug_link
 
-            for i in range(0,10): #WA for Polarion disconnection from time to time
-                try:
-                    req = Requirement.create(project_id=POLARION_PRODUCT, title=bug_title, desc=desc, **named_parms)
-                    break
-                except Exception as inst:
-                    print inst
-                    i+=1
-                    time.sleep(10)
-
-
+            req = Requirement.create(project_id=POLARION_PRODUCT, title=bug_title, desc=desc, **named_parms)
 
             req.add_hyperlink(link.uri, link.role)
             req.status = "approved"
@@ -256,8 +244,7 @@ def create_requirements(bz_rfes, bz_connection):
             bz_connection.add_external_tracker(str(bz_rfe.id), str(req.work_item_id), ext_type_description="Polarion Requirement")
             req_ids.append(req.work_item_id)
 
-        print "%s - end bug: %s - %s" % (datetime.datetime.now(), req.work_item_id, link.uri)
-
+        print "%s - end bug: %s" % (datetime.datetime.now(),bug_link)
 
     plan.add_plan_items(req_ids)
 
@@ -266,6 +253,7 @@ if __name__ == "__main__":
 
     bz_rfes, bz_connection = get_rfes_from_bugzilla()
     print "Number of RFEs in " + BUGZILLA_VERSION + ": %s" %bz_rfes.__len__()
+
     create_requirements(bz_rfes, bz_connection)
 
 
