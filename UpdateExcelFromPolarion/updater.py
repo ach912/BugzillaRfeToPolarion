@@ -1,7 +1,7 @@
 from __future__ import print_function
 from pylarion.test_run import TestRun
 from pylarion.work_item import TestCase
-
+from pylarion.work_item import Requirement
 
 import httplib2
 import os
@@ -60,6 +60,7 @@ def get_credentials():
 def main():
 
 
+    isUpdateAutomationValue = True
     # access excel file and update results
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
@@ -70,24 +71,22 @@ def main():
     spreadsheetId = '1y4eBJhcZ0HsB5JUH5MPcFXWtc2zbP9XbgdCIF0S4iHs'
 
     # Get all test runs by Polarion query, extract test run id and test run results (pass, fail, pending block, total...)
-    # plannedin.KEY:RHOS12
 
 
-    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS13 AND TestRunType.KEY:(regression featureverification)')
-    #test_runs_uris = TestRun.search('20180129-1038')
+
+    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS14 AND TestRunType.KEY:(regression featureverification) AND updated:[20180910 TO 20180912]')
+    # test_runs_uris = TestRun.search('20180625-0836')
     print ("Number of items %s" % len(test_runs_uris))
     loop_counter = 1;
     missing_test_run_in_excel = ''
     non_test_cases_item = 0
 
-
-
-
     for test_run_uri in test_runs_uris:
-#    for i in range(104,135):
- #       test_run_uri = test_runs_uris[i]
+    # for i in range(60,111):
+    #     test_run_uri = test_runs_uris[i]
+
         #get excel values
-        rangeName = 'RHOS 13!A2:X'
+        rangeName = 'RHOS 14!A2:X'
         result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
         values = result.get('values', [])
         value_input_option = 'RAW'
@@ -98,20 +97,23 @@ def main():
         print (test_run_uri.uri)
         test_run = TestRun(uri=test_run_uri.uri)
         test_run_id = test_run.test_run_id
+
         print ('Test run title: ' + test_run.title)
         print ('Test run ID: ' + test_run.test_run_id)
 
+        # https: // polarion.engineering.redhat.com / polarion /  # /project/RHELOpenStackPlatform/testrun?id=20180314-1449&tab=records&result=passed
         records = test_run.records
         pass_counter = 0
         fail_counter = 0
         pending_counter = 0
-        automation_counter = 0
+        automation_counter = 0.0
         critical_counter = 0
         critical_auto_counter = 0
-        automation_percentage = 0
+        #automation_percentage = 0
         blocked_counter = 0
         total_counter = 0
 
+        #Collect inforamtion about test runs, how many test pass
 
         for record in records:
             # print record.result
@@ -119,20 +121,20 @@ def main():
 
             test = TestCase.query(record.test_case_id)
 
-            # 'caseautomation.KEY:automated AND ' +
+
             # print('Test case ID: ' + record.test_case_id)
             # Check if the object type is a testcase and not a header for example!
-            if test:
+            if test and not Requirement.query(record.test_case_id):
 
                 #calculate critical automated and rest automated
-                if test[0].caseautomation.lower() == 'automated':
-                    automation_counter +=1
+                if isUpdateAutomationValue:
+                    if test[0].caseautomation.lower() == 'automated':
+                        automation_counter +=1
+                        if test[0].caseimportance.lower() == 'critical':
+                            critical_auto_counter += 1
+                    #count number of critical cases
                     if test[0].caseimportance.lower() == 'critical':
-                        critical_auto_counter += 1
-
-                #count number of critical cases
-                if test[0].caseimportance.lower() == 'critical':
-                    critical_counter += 1
+                        critical_counter += 1
 
                 if record.result == 'passed':
                     pass_counter += 1
@@ -146,8 +148,8 @@ def main():
                 non_test_cases_item += 1
 
         total_counter = pass_counter + fail_counter + blocked_counter + pending_counter
-        if total_counter > 0:
-            automation_percentage = int(float(automation_counter)/float(total_counter) * 100)
+        # if total_counter > 0:
+        #     automation_percentage = int(float(automation_counter)/float(total_counter)) #*100
 
         print ('Total pass:', pass_counter)
         print ('Total fail:', fail_counter)
@@ -156,10 +158,9 @@ def main():
         print ('Total automated:', automation_counter)
         print('Number of critical:', critical_counter)
         print('Number of critical auto:', critical_auto_counter)
-        print ('Automation percentage:', automation_percentage)
+        #print ('Automation percentage:', automation_percentage)
         print ('Total number of test cases:', total_counter)
 
-        #TODO - update planned number with real number
         row_counter = 1  # offset due to headers
         title_column_number = 2
         total_column_number = 8
@@ -183,35 +184,36 @@ def main():
                     is_test_run_exist_in_excel = True
                     #  print('%s, %s, %s, %s, %s, %s, %s :' % (row[title_column_number], row[total_column_number], row[pass_column_number], row[fail_column_number], row[blocked_column_number],row[automation_percentage_column_number], row[critical_test_number]))
                     values = [
-                        [total_counter,total_counter,pass_counter,fail_counter,blocked_counter]
+                        [total_counter,pass_counter,fail_counter,blocked_counter]
                     ]
                     body = {
                         'values': values
                     }
 
-                    rangeName =  'RHOS 13!H' + str(row_counter) + ':L' + str(row_counter)
+                    rangeName =  'RHOS 14!I' + str(row_counter) + ':L' + str(row_counter)
                     result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName,valueInputOption=value_input_option, body=body).execute()
 
-                    # update automation percentage field
-                    values = [
-                        [automation_percentage]
-                    ]
-                    body = {
-                        'values': values
-                    }
-                    rangeName = 'RHOS 13!S' + str(row_counter)
-                    result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption=value_input_option,body=body).execute()
+                    # # update automation percentage field
+                    # values = [
+                    #     [automation_percentage]
+                    # ]
+                    # body = {
+                    #     'values': values
+                    # }
+                    # rangeName = 'RHOS 13!S' + str(row_counter)
+                    # result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption='USER_ENTERED',body=body).execute()
 
 
                     # update PQI values...
-                    values = [
-                        [automation_counter,critical_counter,critical_auto_counter]
-                    ]
-                    body = {
-                        'values': values
-                    }
-                    rangeName = 'RHOS 13!V' + str(row_counter) + ':X' + str(row_counter)
-                    result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption=value_input_option,body=body).execute()
+                    if isUpdateAutomationValue:
+                        values = [
+                            [automation_counter,critical_counter,critical_auto_counter]
+                        ]
+                        body = {
+                            'values': values
+                        }
+                        rangeName = 'RHOS 14!V' + str(row_counter) + ':X' + str(row_counter)
+                        result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption=value_input_option,body=body).execute()
 
                     # done with update, move to next test run
                     break
@@ -220,7 +222,7 @@ def main():
             missing_test_run_in_excel += test_run_id + ", "
 
     print ("Missing Test Runs in Excel: " + missing_test_run_in_excel)
-    print ("Number of headers in test runs: ", non_test_cases_item)
+    print ("Number of headers or requirements in test runs: ", non_test_cases_item)
 
 if __name__ == '__main__':
     start_time = time.time()
