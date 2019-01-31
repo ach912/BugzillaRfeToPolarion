@@ -42,7 +42,7 @@ def get_rfes_from_bugzilla():
     print "Bugzilla connection: " + str(bz_connection.logged_in)
 
     query = bz_connection.build_query(
-        savedsearch="RHOS-Network-qe_test_coverage"
+        savedsearch="QE_Test_Coverage_RHOS_7"
     )
 
     bz_rfes = bz_connection.query(query)
@@ -53,7 +53,7 @@ def get_rfes_from_bugzilla():
 if __name__ == "__main__":
 
     bug_list, bz_connection = get_rfes_from_bugzilla()
-    print "Number of RFEs in " + BUGZILLA_VERSION + ": %s" %bug_list.__len__()
+    print "Number of bugs in saved Search" + BUGZILLA_VERSION + ": %s" %bug_list.__len__()
 
     for bug in bug_list:
         print('Updating Bugzilla: {}'.format(bug.id))

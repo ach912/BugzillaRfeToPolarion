@@ -16,9 +16,9 @@ import time
 
 BUGZILLA_SERVER = "https://bugzilla.redhat.com/xmlrpc.cgi"
 BUGZILLA_PRODUCT= "OpenShift Container Platform"
-BUGZILLA_VERSION = "14.0 (Queens)"
+BUGZILLA_VERSION = "15.0 (Stein)"
 POLARION_PRODUCT = "RHELOpenStackPlatform"
-POLARION_VERSION = "RHOS14"
+POLARION_VERSION = "RHOS15"
 
 
 
@@ -47,7 +47,7 @@ def convert_polarion_dfg(bug_dfg):
     elif bug_dfg.startswith("DFG:Compute"):
         dfg_id = "Compute"
     elif bug_dfg.startswith("DFG:CloudApp"):
-        dfg_id = "CloudApps"
+        dfg_id = "CloudApp"
     elif bug_dfg.startswith("DFG:Containers"):
         dfg_id = "Containers"
     elif bug_dfg.startswith("DFG:DF"):
@@ -78,16 +78,20 @@ def convert_polarion_dfg(bug_dfg):
         dfg_id = "Storage"
     elif bug_dfg.startswith("DFG:Telemetry"):
         dfg_id = "Telemetry"
-    elif bug_dfg.startswith("DFG:UI"):
-        dfg_id = "OSPD_UI"
     elif bug_dfg.startswith("DFG:Upgrades"):
         dfg_id = "Upgrade"
     elif bug_dfg.startswith("DFG:Workflows"):
         dfg_id = "Workflows"
-    elif bug_dfg.startswith("DFG:OpenShiftonOpenStack"):
+    elif bug_dfg.startswith("DFG:ShiftOnStack"):
         dfg_id = "OpenShiftOnOpenstack"
+    elif bug_dfg.startswith("DFG:OSasInfra"):
+        dfg_id = "OSasInfra"
     elif bug_dfg.startswith("DFG:PortfolioIntegration"):
         dfg_id = "PortfolioIntegration"
+    elif bug_dfg.startswith("DFG:Edge"):
+        dfg_id = "Edge"
+    elif bug_dfg.startswith("DFG:UI"):
+        dfg_id = "OSPD_UI"
     else:
         dfg_id = ""
 
@@ -134,7 +138,7 @@ def get_bug_params(bug):
     if bug.getcomments():
         comment = bug.getcomments()[0]
         # the description is always the first comment.
-        description = comment["text"]
+        description = comment["text"] +" " +  bug.weburl
 
     dfg = bug.internal_whiteboard
 
@@ -184,7 +188,8 @@ def get_rfes_from_bugzilla():
 
     print "Bugzilla connection: " + str(bz_connection.logged_in)
 
-    query = bz_connection.build_query(quicksearch = "1391364,1430485,1446522,1462048,1465036,1495692,1548059,1552268,1554786,1554790,1565622,1565999,1581470,1593858,1595330")
+    query = bz_connection.build_query(quicksearch = "1241596")
+    # exclude: 1475556, 1288035 , 1375207, 1467591, 1512686, 1524393, 1524402
 
     bz_rfes = bz_connection.query(query)
 

@@ -2,6 +2,7 @@ from __future__ import print_function
 from pylarion.test_run import TestRun
 from pylarion.work_item import TestCase
 from pylarion.work_item import Requirement
+from pylarion.test_record import TestRecord
 
 import httplib2
 import os
@@ -60,7 +61,7 @@ def get_credentials():
 def main():
 
 
-    isUpdateAutomationValue = True
+    isUpdateAutomationValue = False
     # access excel file and update results
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
@@ -73,8 +74,7 @@ def main():
     # Get all test runs by Polarion query, extract test run id and test run results (pass, fail, pending block, total...)
 
 
-
-    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS14 AND TestRunType.KEY:(regression featureverification) AND updated:[20180910 TO 20180912]')
+    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS14 AND updated:[20190109 TO 20190110]') #  AND updated:[20181129 TO 20181129] AND updated:[20181108 TO 20181111] AND TestRunType.KEY:(regression featureverification)
     # test_runs_uris = TestRun.search('20180625-0836')
     print ("Number of items %s" % len(test_runs_uris))
     loop_counter = 1;
@@ -82,7 +82,7 @@ def main():
     non_test_cases_item = 0
 
     for test_run_uri in test_runs_uris:
-    # for i in range(60,111):
+    # for i in range(41,107):
     #     test_run_uri = test_runs_uris[i]
 
         #get excel values
@@ -115,27 +115,9 @@ def main():
 
         #Collect inforamtion about test runs, how many test pass
 
-        for record in records:
-            # print record.result
-            #check if test is automated
+        if test_run.TestRunType == 'Acceptance':
 
-            test = TestCase.query(record.test_case_id)
-
-
-            # print('Test case ID: ' + record.test_case_id)
-            # Check if the object type is a testcase and not a header for example!
-            if test and not Requirement.query(record.test_case_id):
-
-                #calculate critical automated and rest automated
-                if isUpdateAutomationValue:
-                    if test[0].caseautomation.lower() == 'automated':
-                        automation_counter +=1
-                        if test[0].caseimportance.lower() == 'critical':
-                            critical_auto_counter += 1
-                    #count number of critical cases
-                    if test[0].caseimportance.lower() == 'critical':
-                        critical_counter += 1
-
+            for record in records:
                 if record.result == 'passed':
                     pass_counter += 1
                 elif record.result == 'failed':
@@ -144,8 +126,38 @@ def main():
                     blocked_counter += 1
                 else:
                     pending_counter += 1
-            else:
-                non_test_cases_item += 1
+        else:
+            for record in records:
+                # print record.result
+                #check if test is automated
+
+                test = TestCase.query(record.test_case_id)
+
+
+                # print('Test case ID: ' + record.test_case_id)
+                # Check if the object type is a testcase and not a header for example!
+                if test and not Requirement.query(record.test_case_id):
+
+                    #calculate critical automated and rest automated
+                    if isUpdateAutomationValue:
+                        if test[0].caseautomation.lower() == 'automated':
+                            automation_counter +=1
+                            if test[0].caseimportance.lower() == 'critical':
+                                critical_auto_counter += 1
+                        #count number of critical cases
+                        if test[0].caseimportance.lower() == 'critical':
+                            critical_counter += 1
+
+                    if record.result == 'passed':
+                        pass_counter += 1
+                    elif record.result == 'failed':
+                        fail_counter += 1
+                    elif record.result == 'blocked':
+                        blocked_counter += 1
+                    else:
+                        pending_counter += 1
+                else:
+                    non_test_cases_item += 1
 
         total_counter = pass_counter + fail_counter + blocked_counter + pending_counter
         # if total_counter > 0:
@@ -184,13 +196,13 @@ def main():
                     is_test_run_exist_in_excel = True
                     #  print('%s, %s, %s, %s, %s, %s, %s :' % (row[title_column_number], row[total_column_number], row[pass_column_number], row[fail_column_number], row[blocked_column_number],row[automation_percentage_column_number], row[critical_test_number]))
                     values = [
-                        [total_counter,pass_counter,fail_counter,blocked_counter]
+                        [total_counter, total_counter,pass_counter,fail_counter,blocked_counter]
                     ]
                     body = {
                         'values': values
                     }
 
-                    rangeName =  'RHOS 14!I' + str(row_counter) + ':L' + str(row_counter)
+                    rangeName =  'RHOS 14!H' + str(row_counter) + ':L' + str(row_counter)
                     result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName,valueInputOption=value_input_option, body=body).execute()
 
                     # # update automation percentage field
@@ -205,7 +217,7 @@ def main():
 
 
                     # update PQI values...
-                    if isUpdateAutomationValue:
+                    if isUpdateAutomationValue and test_run.TestRunType != 'Acceptance':
                         values = [
                             [automation_counter,critical_counter,critical_auto_counter]
                         ]
@@ -224,9 +236,28 @@ def main():
     print ("Missing Test Runs in Excel: " + missing_test_run_in_excel)
     print ("Number of headers or requirements in test runs: ", non_test_cases_item)
 
+
+
+
+def check_for_spare_test_runs_in_excel():
+
+    print("Test run in excel but not in Polarion already: ")
+    test_run_ids = [""]
+    print(test_run_ids.__len__())
+
+
+    for id in test_run_ids:
+        test_run = TestRun.search(id)
+        if not test_run.__len__():
+            print(id)
+
+
+
 if __name__ == '__main__':
     start_time = time.time()
 
     main()
+    # check_for_spare_test_runs_in_excel()
+
 
     print("time elapsed: {:.2f}s".format(time.time() - start_time))
