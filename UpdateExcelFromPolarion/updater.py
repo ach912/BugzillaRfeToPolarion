@@ -74,7 +74,7 @@ def main():
     # Get all test runs by Polarion query, extract test run id and test run results (pass, fail, pending block, total...)
 
 
-    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS14 AND updated:[20190109 TO 20190110]') #  AND updated:[20181129 TO 20181129] AND updated:[20181108 TO 20181111] AND TestRunType.KEY:(regression featureverification)
+    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS15 AND updated:[20190415 TO 20190417]')
     # test_runs_uris = TestRun.search('20180625-0836')
     print ("Number of items %s" % len(test_runs_uris))
     loop_counter = 1;
@@ -86,7 +86,7 @@ def main():
     #     test_run_uri = test_runs_uris[i]
 
         #get excel values
-        rangeName = 'RHOS 14!A2:X'
+        rangeName = 'RHOS 15!A2:X'
         result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
         values = result.get('values', [])
         value_input_option = 'RAW'
@@ -101,7 +101,7 @@ def main():
         print ('Test run title: ' + test_run.title)
         print ('Test run ID: ' + test_run.test_run_id)
 
-        # https: // polarion.engineering.redhat.com / polarion /  # /project/RHELOpenStackPlatform/testrun?id=20180314-1449&tab=records&result=passed
+
         records = test_run.records
         pass_counter = 0
         fail_counter = 0
@@ -202,7 +202,7 @@ def main():
                         'values': values
                     }
 
-                    rangeName =  'RHOS 14!H' + str(row_counter) + ':L' + str(row_counter)
+                    rangeName =  'RHOS 15!H' + str(row_counter) + ':L' + str(row_counter)
                     result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName,valueInputOption=value_input_option, body=body).execute()
 
                     # # update automation percentage field
@@ -224,7 +224,7 @@ def main():
                         body = {
                             'values': values
                         }
-                        rangeName = 'RHOS 14!V' + str(row_counter) + ':X' + str(row_counter)
+                        rangeName = 'RHOS 15!V' + str(row_counter) + ':X' + str(row_counter)
                         result = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=rangeName, valueInputOption=value_input_option,body=body).execute()
 
                     # done with update, move to next test run
