@@ -74,7 +74,7 @@ def main():
     # Get all test runs by Polarion query, extract test run id and test run results (pass, fail, pending block, total...)
 
 
-    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS15 AND updated:[20190415 TO 20190417]')
+    test_runs_uris = TestRun.search('NOT status:invalid AND plannedin.KEY:RHOS16') #updated:[20190627 TO 20190630]') #
     # test_runs_uris = TestRun.search('20180625-0836')
     print ("Number of items %s" % len(test_runs_uris))
     loop_counter = 1;
@@ -82,11 +82,11 @@ def main():
     non_test_cases_item = 0
 
     for test_run_uri in test_runs_uris:
-    # for i in range(41,107):
+    # for i in range(106,130):
     #     test_run_uri = test_runs_uris[i]
 
         #get excel values
-        rangeName = 'RHOS 15!A2:X'
+        rangeName = 'RHOS 16!A2:X'
         result = service.spreadsheets().values().get(spreadsheetId=spreadsheetId, range=rangeName).execute()
         values = result.get('values', [])
         value_input_option = 'RAW'
@@ -173,6 +173,7 @@ def main():
         #print ('Automation percentage:', automation_percentage)
         print ('Total number of test cases:', total_counter)
 
+        #column number in excel file and thier representation as hard coded value
         row_counter = 1  # offset due to headers
         title_column_number = 2
         total_column_number = 8
@@ -190,8 +191,12 @@ def main():
             for row in values:
                 is_test_run_exist_in_excel = False
                 row_counter +=1
+                # print(row_counter)
+                # if(row_counter==134):
+                #     print('stop')
+
                 # Check that row contains test run id in cell R AND check that test_run_id is match
-                if row.__len__() >= 20 and row[test_run_id_column_number] == test_run_id:
+                if row.__len__() >= test_run_id_column_number and row[test_run_id_column_number] == test_run_id:
                     print('Row number is: ' + str(row_counter))
                     is_test_run_exist_in_excel = True
                     #  print('%s, %s, %s, %s, %s, %s, %s :' % (row[title_column_number], row[total_column_number], row[pass_column_number], row[fail_column_number], row[blocked_column_number],row[automation_percentage_column_number], row[critical_test_number]))
